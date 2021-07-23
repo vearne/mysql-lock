@@ -68,5 +68,8 @@ func (l *MySQLLock) Release(lockName string) error {
 		return fmt.Errorf("The lock must be locked before the lock can be released:%v", lockName)
 	}
 	tx.Commit()
+	// 注意: 每个事务都有唯一的事务ID
+	// 当事务被commit或者rollback之后，就不能再使用了
+	delete(l.TXMap, lockName)
 	return nil
 }
