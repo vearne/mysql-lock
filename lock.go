@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"strings"
 	"time"
 )
 
@@ -46,19 +45,21 @@ func (l *MySQLLock) Acquire(lockName string, wait time.Duration) error {
 		l.TXMap[lockName] = l.MySQLClient.Begin()
 		tx = l.TXMap[lockName]
 	}
-	beginTime := time.Now()
-	var err error
-	for time.Since(beginTime) < wait {
-		result := tx.Exec("select * from _lock_store where name = ? for update", lockName)
-		err = result.Error
-		// Error 1205: Lock wait timeout exceeded; try restarting transaction
-		if err == nil {
-			break
-		} else if strings.Index(err.Error(), "Error 1205") == -1 {
-			// 如果成功获得锁，或者有其它错误，则退出
-			break
-		}
+
+	if wait < 1*time.Second {
+		wait = 1 * time.Second
 	}
+	var err error
+	// The length of time in seconds an InnoDB transaction waits for a row lock before giving up.
+	result := tx.Exec("SET @@session.innodb_lock_wait_timeout = ?", wait/time.Second)
+	err = result.Error
+	if err != nil {
+		return err
+	}
+
+	result = tx.Exec("select * from _lock_store where name = ? for update", lockName)
+	err = result.Error
+	// Error 1205: Lock wait timeout exceeded; try restarting transaction
 	return err
 }
 

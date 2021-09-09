@@ -7,8 +7,8 @@ import (
 )
 
 func main() {
-	debug := false
-	dsn := "tc_user:D83B6CD42A6C@tcp(127.0.0.1:10104)/xxx?charset=utf8&loc=Asia%2FShanghai&parseTime=true"
+	debug := true
+	dsn := "tc_user:20C462C9C614@tcp(127.0.0.1:3306)/xxx?charset=utf8&loc=Asia%2FShanghai&parseTime=true"
 	locker := mlock.NewMySQLLock(dsn, debug)
 	locker.Init([]string{"lock1", "lock2"})
 
