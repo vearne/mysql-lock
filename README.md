@@ -6,6 +6,9 @@ a simple distributed lock based on mysql
 go get github.com/vearne/gin-timeout
 ```
 
+# Notice
+Table `_lock_store` will be created by mysql-lock. So MySQL user need `CREATE` permission.
+
 # example
 ```
 package main
