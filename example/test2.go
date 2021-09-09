@@ -25,5 +25,4 @@ func main() {
 	time.Sleep(8 * time.Second)
 	locker.Release("lock1")
 	log.Println("release lock1")
-
 }
