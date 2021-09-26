@@ -10,7 +10,12 @@ go get github.com/vearne/mysql-lock
 ```
 
 # Notice
-* Table `_lock_store` will be created by mysql-lock. So MySQL user need `CREATE` permission.
+* **Distributed locks based on mysql are not rigorous.**
+
+  For example, at t1, A holds the lock, and B waits for the lock. At t2, the network between A and MySQL is abnormal. MySQL actively releases the lock imposed by A (rolling back the transaction that A has not committed), and B adds the lock. At this time, A will think that it owns the lock; B will also think that it holds the lock. The distributed lock actually fails.
+* Table `_lock_store` will be created by mysql-lock.
+  
+  So MySQL user need `CREATE` permission. Or you can use [doc/schema.sql](https://github.com/vearne/mysql-lock/blob/main/doc/schema.sql) to create the table `_lock_store` yourself.
 
 # example
 ```

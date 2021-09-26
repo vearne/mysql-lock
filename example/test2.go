@@ -22,7 +22,7 @@ func main() {
 
 	log.Println("got lock1")
 	log.Println(time.Since(beginTime))
-	time.Sleep(8 * time.Second)
+	time.Sleep(5 * time.Second)
 	locker.Release("lock1")
 	log.Println("release lock1")
 }
