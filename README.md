@@ -3,7 +3,7 @@ a simple distributed lock based on mysql
 
 # Usage
 ```
-go get github.com/vearne/gin-timeout
+go get github.com/vearne/mysql-lock
 ```
 
 # Notice
