@@ -55,9 +55,10 @@ func (l *MySQLLock) Acquire(lockName string, wait time.Duration) error {
 	if wait < 1*time.Second {
 		wait = 1 * time.Second
 	}
+
 	var err error
 	// The length of time in seconds an InnoDB transaction waits for a row lock before giving up.
-	result := tx.Exec("SET @@session.innodb_lock_wait_timeout = ?", wait/time.Second)
+	result := tx.Exec("SET @@session.innodb_lock_wait_timeout = ?", int(wait/time.Second))
 	err = result.Error
 	if err != nil {
 		return err

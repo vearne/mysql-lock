@@ -9,7 +9,7 @@ go get github.com/vearne/mysql-lock
 ```
 
 # 注意
-* 基于mysql的分布式锁，是不严谨的。
+* **基于mysql的分布式锁，是不严谨的。**
   
   比如t1时刻，A持有锁，B等待加锁。t2时刻，A与MySQL之间的网络出现异常。MySQL主动释放了A所施加的锁(回滚了A没有提交的事务)，B加上了锁，这时候A会认为，它拥有锁；B也会认为自己持有锁。分布式锁其实失效了。
 * mysql-lock会创建表 `_lock_store`。
