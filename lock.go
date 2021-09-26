@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"sync"
 	"time"
 )
 
 type MySQLLock struct {
+	sync.Mutex
 	MySQLClient *gorm.DB
 	TXMap       map[string]*gorm.DB
 }
@@ -39,12 +41,16 @@ func (l *MySQLLock) Init(lockNameList []string) {
 
 // Lock :If the lock cannot be obtained, it will keep blocking
 func (l *MySQLLock) Acquire(lockName string, wait time.Duration) error {
+	l.Lock()
+
 	// start transaction
 	tx, ok := l.TXMap[lockName]
 	if !ok {
 		l.TXMap[lockName] = l.MySQLClient.Begin()
 		tx = l.TXMap[lockName]
 	}
+
+	l.Unlock()
 
 	if wait < 1*time.Second {
 		wait = 1 * time.Second
@@ -64,13 +70,20 @@ func (l *MySQLLock) Acquire(lockName string, wait time.Duration) error {
 }
 
 func (l *MySQLLock) Release(lockName string) error {
+	l.Lock()
 	tx, ok := l.TXMap[lockName]
+	l.Unlock()
+
 	if !ok {
 		return fmt.Errorf("The lock must be locked before the lock can be released:%v", lockName)
 	}
+
 	tx.Commit()
 	// 注意: 每个事务都有唯一的事务ID
 	// 当事务被commit或者rollback之后，就不能再使用了
+	l.Lock()
 	delete(l.TXMap, lockName)
+	l.Unlock()
+
 	return nil
 }
