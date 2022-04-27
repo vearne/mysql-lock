@@ -1,12 +1,14 @@
 package lock
 
 import (
+	"database/sql"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"time"
 )
 
-func InitMySQL(dsn string, debug bool) *gorm.DB {
+// initialize *gorm.DB with dsn
+func InitMySQLWithDSN(dsn string, debug bool) *gorm.DB {
 	mysqldb, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		panic(err)
@@ -22,4 +24,15 @@ func InitMySQL(dsn string, debug bool) *gorm.DB {
 	sqlDB.SetMaxOpenConns(20)
 	sqlDB.SetConnMaxLifetime(600 * time.Second)
 	return mysqldb
+}
+
+// initialize *gorm.DB with an existing database connection
+func InitMySQLWithConn(sqlDB *sql.DB) *gorm.DB {
+	gormDB, err := gorm.Open(mysql.New(mysql.Config{
+		Conn: sqlDB,
+	}), &gorm.Config{})
+	if err != nil {
+		panic(err)
+	}
+	return gormDB
 }

@@ -9,7 +9,10 @@ import (
 func main() {
 	debug := false
 	dsn := "tc_user:20C462C9C614@tcp(127.0.0.1:3306)/xxx?charset=utf8&loc=Asia%2FShanghai&parseTime=true"
-	locker := mlock.NewMySQLLock(dsn, debug)
+	var locker mlock.MySQLLockItf
+	locker = mlock.NewRowLockWithDSN(dsn, debug)
+	//locker = mlock.NewCounterLockWithDSN(dsn, debug)
+
 	locker.Init([]string{"lock1", "lock2"})
 
 	beginTime := time.Now()

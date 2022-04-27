@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	mlock "github.com/vearne/mysql-lock"
 	"log"
 	"sync"
@@ -8,9 +9,15 @@ import (
 )
 
 func main() {
-	debug := true
 	dsn := "tc_user:20C462C9C614@tcp(127.0.0.1:3306)/xxx?charset=utf8&loc=Asia%2FShanghai&parseTime=true"
-	locker := mlock.NewMySQLLock(dsn, debug)
+	sqlDB, err := sql.Open("mysql", dsn)
+	if err != nil {
+		panic(err)
+	}
+	var locker mlock.MySQLLockItf
+	locker = mlock.NewRowLockWithConn(sqlDB)
+	//locker = mlock.NewCounterLockWithConn(sqlDB)
+
 	locker.Init([]string{"lock1", "lock2"})
 
 	var wg sync.WaitGroup
