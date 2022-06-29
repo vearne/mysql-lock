@@ -14,6 +14,8 @@ func main() {
 	//locker = mlock.NewCounterLockWithDSN(dsn, debug)
 
 	locker.Init([]string{"lock1", "lock2"})
+	// optional, only for CounterLock
+	locker.SetClientID("client1")
 
 	for i := 0; i < 3; i++ {
 		beginTime := time.Now()

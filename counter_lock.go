@@ -57,6 +57,10 @@ func (l *MySQCounterLock) Init(lockNameList []string) {
 	}
 }
 
+func (l *MySQCounterLock) SetClientID(clientID string) {
+	l.ClientID = clientID
+}
+
 // Lock :If the lock cannot be obtained, it will keep blocking
 // wait: < 0 no wait
 func (l *MySQCounterLock) Acquire(lockName string, wait time.Duration) error {
@@ -75,49 +79,36 @@ func (l *MySQCounterLock) Acquire(lockName string, wait time.Duration) error {
 
 	//  Lock is open.
 	if record.Counter == LockStatusOpen {
-		mysqlClient.Model(&LockCounter{}).Where("id = ? AND counter = ?",
+		result := mysqlClient.Model(&LockCounter{}).Where("id = ? AND counter = ?",
 			record.ID, LockStatusOpen).
 			Updates(map[string]interface{}{
 				"counter": LockStatusClosed,
 				"owner":   l.ClientID},
 			)
-		if mysqlClient.Error != nil {
-			return mysqlClient.Error
+		if result.Error != nil {
+			return result.Error
 		}
 
-		mysqlClient.Where("name = ?", lockName).First(&record)
-		if mysqlClient.Error != nil {
-			return mysqlClient.Error
-		}
-		// got lock
-		if record.Counter == LockStatusClosed && record.Owner == l.ClientID {
+		if result.RowsAffected >= 1 {
 			return nil
 		}
-
 	}
 
 	// retry
 	start := time.Now()
 	deadline := start.Add(wait)
-	fmt.Println("deadline", deadline)
-	fmt.Println("now", time.Now())
 	for time.Now().Before(deadline) {
-		mysqlClient.Model(&LockCounter{}).Where("id = ? AND counter = ?",
+		result := mysqlClient.Model(&LockCounter{}).Where("id = ? AND counter = ?",
 			record.ID, LockStatusOpen).
 			Updates(map[string]interface{}{
 				"counter": LockStatusClosed,
 				"owner":   l.ClientID},
 			)
-		if mysqlClient.Error != nil {
-			return mysqlClient.Error
+		if result.Error != nil {
+			return result.Error
 		}
 
-		mysqlClient.Where("name = ?", lockName).First(&record)
-		if mysqlClient.Error != nil {
-			return mysqlClient.Error
-		}
-		// got lock
-		if record.Counter == LockStatusClosed && record.Owner == l.ClientID {
+		if result.RowsAffected >= 1 {
 			return nil
 		}
 
@@ -131,27 +122,27 @@ func (l *MySQCounterLock) Release(lockName string) error {
 	mysqlClient := l.MySQLClient
 	var record LockCounter
 
-	mysqlClient.Where("name = ?", lockName).First(&record)
-	if mysqlClient.Error != nil {
-		return mysqlClient.Error
+	result := mysqlClient.Where("name = ?", lockName).First(&record)
+	if result.Error != nil {
+		return result.Error
 	}
 
 	if record.Counter == LockStatusOpen {
-		return fmt.Errorf("Lock [%v] is open", lockName)
+		return fmt.Errorf("lock [%v] is open", lockName)
 	}
 
 	if record.Owner != l.ClientID {
-		return fmt.Errorf("Lock [%v] is't owned by you.", lockName)
+		return fmt.Errorf("lock [%v] is't owned by you", lockName)
 	}
 
-	mysqlClient.Model(&LockCounter{}).Where("id = ? AND owner = ?",
+	result = mysqlClient.Model(&LockCounter{}).Where("id = ? AND owner = ?",
 		record.ID, l.ClientID).
 		Updates(map[string]interface{}{
 			"counter": LockStatusOpen,
 			"owner":   ""},
 		)
-	if mysqlClient.Error != nil {
-		return mysqlClient.Error
+	if result.Error != nil {
+		return result.Error
 	}
 
 	return nil
