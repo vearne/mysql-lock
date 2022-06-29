@@ -1,4 +1,7 @@
 # mysql-lock
+
+[![golang-ci](https://github.com/vearne/mysql-lock/actions/workflows/golang-ci.yml/badge.svg)](https://github.com/vearne/mysql-lock/actions/workflows/golang-ci.yml)
+
 a simple distributed lock based on mysql
 
 * [中文 README](https://github.com/vearne/mysql-lock/blob/master/README_zh.md)
