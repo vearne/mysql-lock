@@ -19,6 +19,8 @@ func main() {
 	//locker = mlock.NewCounterLockWithConn(sqlDB)
 
 	locker.Init([]string{"lock1", "lock2"})
+	// optional, only for CounterLock
+	locker.SetClientID("client1")
 
 	var wg sync.WaitGroup
 	for i := 0; i < 5; i++ {

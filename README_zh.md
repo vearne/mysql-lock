@@ -61,6 +61,9 @@ func main() {
 
 	// init() can be executed multiple times
 	locker.Init([]string{"lock1", "lock2"})
+	
+	// optional, only for CounterLock
+	locker.SetClientID("client1")
 
 	beginTime := time.Now()
 	// max wait for 5 secs

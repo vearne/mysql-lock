@@ -47,6 +47,10 @@ func (l *MySQRowLock) Init(lockNameList []string) {
 	}
 }
 
+func (l *MySQRowLock) SetClientID(clientID string) {
+
+}
+
 // Lock :If the lock cannot be obtained, it will keep blocking
 func (l *MySQRowLock) Acquire(lockName string, wait time.Duration) error {
 	l.Lock()
