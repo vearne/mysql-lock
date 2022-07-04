@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	github.com/google/uuid v1.3.0
+	github.com/vearne/simplelog v0.0.0-20200527094239-692fca69e8b1
 	gorm.io/driver/mysql v1.3.4
 	gorm.io/gorm v1.23.6
 )

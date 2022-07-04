@@ -27,12 +27,15 @@ func InitMySQLWithDSN(dsn string, debug bool) *gorm.DB {
 }
 
 // initialize *gorm.DB with an existing database connection
-func InitMySQLWithConn(sqlDB *sql.DB) *gorm.DB {
+func InitMySQLWithConn(sqlDB *sql.DB, debug bool) *gorm.DB {
 	gormDB, err := gorm.Open(mysql.New(mysql.Config{
 		Conn: sqlDB,
 	}), &gorm.Config{})
 	if err != nil {
 		panic(err)
+	}
+	if debug {
+		gormDB = gormDB.Debug()
 	}
 	return gormDB
 }

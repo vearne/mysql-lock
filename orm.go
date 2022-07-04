@@ -19,6 +19,7 @@ type LockCounter struct {
 	Counter    uint64    `gorm:"column:counter" json:"counter"`
 	CreatedAt  time.Time `gorm:"column:created_at" json:"createdAt"`
 	ModifiedAt time.Time `gorm:"column:modified_at" json:"modifiedAt"`
+	ExpiredAt  time.Time `gorm:"column:expired_at" json:"expiredAt"`
 	// other
 	ID int `gorm:"column:id" json:"id"`
 }

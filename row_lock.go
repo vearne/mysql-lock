@@ -15,16 +15,16 @@ type MySQRowLock struct {
 	TXMap       map[string]*gorm.DB
 }
 
-func NewRowLockWithDSN(dsn string, debug bool) MySQLLockItf {
+func NewRowLockWithDSN(dsn string, debug bool) *MySQRowLock {
 	l := MySQRowLock{}
 	l.MySQLClient = InitMySQLWithDSN(dsn, debug)
 	l.TXMap = make(map[string]*gorm.DB)
 	return &l
 }
 
-func NewRowLockWithConn(db *sql.DB) MySQLLockItf {
+func NewRowLockWithConn(db *sql.DB, debug bool) *MySQRowLock {
 	l := MySQRowLock{}
-	l.MySQLClient = InitMySQLWithConn(db)
+	l.MySQLClient = InitMySQLWithConn(db, debug)
 	l.TXMap = make(map[string]*gorm.DB)
 	return &l
 }
@@ -45,10 +45,6 @@ func (l *MySQRowLock) Init(lockNameList []string) {
 				Create(&LockStore{Name: lockName, CreatedAt: time.Now()})
 		}
 	}
-}
-
-func (l *MySQRowLock) SetClientID(clientID string) {
-
 }
 
 // Lock :If the lock cannot be obtained, it will keep blocking

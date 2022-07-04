@@ -4,9 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/google/uuid"
+	slog "github.com/vearne/simplelog"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"math/rand"
 	"time"
 )
 
@@ -18,21 +18,30 @@ const (
 type MySQCounterLock struct {
 	MySQLClient *gorm.DB
 	ClientID    string
+	MaxLockTime time.Duration
+	// storage done channels
+	store *DoneStore
+	// backoff strategy
+	backoff BackOff
 }
 
-func NewCounterLockWithDSN(dsn string, debug bool) MySQLLockItf {
+func NewCounterLockWithDSN(dsn string, debug bool) *MySQCounterLock {
 	l := MySQCounterLock{}
 	l.MySQLClient = InitMySQLWithDSN(dsn, debug)
-	id := uuid.New()
-	l.ClientID = id.String()
+	l.ClientID = uuid.New().String()
+	l.MaxLockTime = time.Minute
+	l.store = NewDoneStore()
+	l.backoff = NewLinearBackOff(time.Second)
 	return &l
 }
 
-func NewCounterLockWithConn(db *sql.DB) MySQLLockItf {
+func NewCounterLockWithConn(db *sql.DB, debug bool) *MySQCounterLock {
 	l := MySQCounterLock{}
-	l.MySQLClient = InitMySQLWithConn(db)
-	id := uuid.New()
-	l.ClientID = id.String()
+	l.MySQLClient = InitMySQLWithConn(db, debug)
+	l.ClientID = uuid.New().String()
+	l.MaxLockTime = time.Minute
+	l.store = NewDoneStore()
+	l.backoff = NewLinearBackOff(time.Second)
 	return &l
 }
 
@@ -52,7 +61,10 @@ func (l *MySQCounterLock) Init(lockNameList []string) {
 					Counter:    LockStatusOpen,
 					Owner:      "",
 					CreatedAt:  time.Now(),
-					ModifiedAt: time.Now()})
+					ModifiedAt: time.Now(),
+					ExpiredAt:  time.Now(),
+				},
+				)
 		}
 	}
 }
@@ -61,15 +73,68 @@ func (l *MySQCounterLock) SetClientID(clientID string) {
 	l.ClientID = clientID
 }
 
+func (l *MySQCounterLock) SetMaxLockTime(d time.Duration) {
+	l.MaxLockTime = d
+	if d < time.Minute {
+		l.MaxLockTime = time.Minute
+	}
+}
+
+func (l *MySQCounterLock) WithBackOff(b BackOff) {
+	l.backoff = b
+}
+
+func (l *MySQCounterLock) Refresh(lockName string) error {
+	ticker := time.NewTicker(l.MaxLockTime - time.Duration(10)*time.Second)
+	defer ticker.Stop()
+	var firstFlag bool = true
+
+	slog.Debug("MySQCounterLock-Refresh worker starting...")
+	for {
+		select {
+		case <-ticker.C:
+			mysqlClient := l.MySQLClient
+			result := mysqlClient.Model(&LockCounter{}).Where(
+				"name = ? AND counter = ? AND owner = ?",
+				lockName,
+				LockStatusClosed,
+				l.ClientID,
+			).
+				Updates(map[string]interface{}{
+					"owner":      l.ClientID,
+					"expired_at": time.Now().Add(l.MaxLockTime),
+				},
+				)
+			if result.Error != nil {
+				return result.Error
+			}
+			if firstFlag {
+				firstFlag = false
+				ticker.Reset(l.MaxLockTime)
+			}
+			slog.Debug("refresh lock")
+		case <-l.store.GetDoneChan(lockName):
+			return nil
+		}
+	}
+}
+
+func (l *MySQCounterLock) StopRefresh(lockName string) {
+	slog.Debug("StopRefresh")
+	l.store.CLoseDoneChan(lockName)
+}
+
 // Lock :If the lock cannot be obtained, it will keep blocking
 // wait: < 0 no wait
 func (l *MySQCounterLock) Acquire(lockName string, wait time.Duration) error {
 	mysqlClient := l.MySQLClient
 	var record LockCounter
+	var deadline time.Time
+	var start time.Time
 
-	mysqlClient.Where("name = ?", lockName).First(&record)
-	if mysqlClient.Error != nil {
-		return mysqlClient.Error
+	result := mysqlClient.Where("name = ?", lockName).First(&record)
+	if result.Error != nil {
+		return result.Error
 	}
 
 	// reentrant lock
@@ -77,45 +142,55 @@ func (l *MySQCounterLock) Acquire(lockName string, wait time.Duration) error {
 		return nil
 	}
 
-	//  Lock is open.
-	if record.Counter == LockStatusOpen {
-		result := mysqlClient.Model(&LockCounter{}).Where("id = ? AND counter = ?",
-			record.ID, LockStatusOpen).
-			Updates(map[string]interface{}{
-				"counter": LockStatusClosed,
-				"owner":   l.ClientID},
-			)
-		if result.Error != nil {
-			return result.Error
-		}
+	//  Lock is open or Lock is expired.
+	result = mysqlClient.Model(&LockCounter{}).Where(
+		"id = ? AND ((counter = ?) or (expired_at <  NOW()))",
+		record.ID, LockStatusOpen).
+		Updates(map[string]interface{}{
+			"counter":    LockStatusClosed,
+			"owner":      l.ClientID,
+			"expired_at": time.Now().Add(l.MaxLockTime),
+		},
+		)
+	if result.Error != nil {
+		return result.Error
+	}
 
-		if result.RowsAffected >= 1 {
-			return nil
-		}
+	if result.RowsAffected >= 1 {
+		goto SUCESSGOT
 	}
 
 	// retry
-	start := time.Now()
-	deadline := start.Add(wait)
+	start = time.Now()
+	deadline = start.Add(wait)
 	for time.Now().Before(deadline) {
-		result := mysqlClient.Model(&LockCounter{}).Where("id = ? AND counter = ?",
+		slog.Debug("Acquire retry lock[%v]", lockName)
+
+		result = mysqlClient.Model(&LockCounter{}).Where(
+			"id = ? AND ((counter = ?) or (expired_at <  NOW()))",
 			record.ID, LockStatusOpen).
 			Updates(map[string]interface{}{
-				"counter": LockStatusClosed,
-				"owner":   l.ClientID},
+				"counter":    LockStatusClosed,
+				"owner":      l.ClientID,
+				"expired_at": time.Now().Add(l.MaxLockTime),
+			},
 			)
 		if result.Error != nil {
 			return result.Error
 		}
 
 		if result.RowsAffected >= 1 {
-			return nil
+			goto SUCESSGOT
 		}
 
-		time.Sleep(time.Duration(100+rand.Intn(100)) * time.Millisecond)
+		time.Sleep(l.backoff.NextBackOff())
 	}
 
 	return fmt.Errorf("get lock timeout, wait:%v", wait)
+
+SUCESSGOT:
+	go l.Refresh(lockName)
+	return nil
 }
 
 func (l *MySQCounterLock) Release(lockName string) error {
@@ -145,5 +220,7 @@ func (l *MySQCounterLock) Release(lockName string) error {
 		return result.Error
 	}
 
+	// stop refresh
+	l.StopRefresh(lockName)
 	return nil
 }
