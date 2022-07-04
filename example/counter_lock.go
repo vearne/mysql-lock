@@ -7,8 +7,8 @@ import (
 )
 
 func main() {
-	//debug := false
-	debug := true
+	debug := false
+	//debug := true
 	dsn := "tc_user:20C462C9C614@tcp(127.0.0.1:3306)/xxx?charset=utf8&loc=Asia%2FShanghai&parseTime=true"
 
 	var locker *mlock.MySQCounterLock
