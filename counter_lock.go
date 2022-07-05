@@ -189,6 +189,7 @@ func (l *MySQCounterLock) Acquire(lockName string, wait time.Duration) error {
 	return fmt.Errorf("get lock timeout, wait:%v", wait)
 
 SUCESSGOT:
+	//nolint:errcheck
 	go l.Refresh(lockName)
 	return nil
 }
