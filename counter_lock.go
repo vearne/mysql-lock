@@ -15,7 +15,7 @@ const (
 	LockStatusClosed = 1
 )
 
-type MySQCounterLock struct {
+type MySQLCounterLock struct {
 	MySQLClient *gorm.DB
 	ClientID    string
 	MaxLockTime time.Duration
@@ -25,8 +25,8 @@ type MySQCounterLock struct {
 	backoff BackOff
 }
 
-func NewCounterLockWithDSN(dsn string, debug bool) *MySQCounterLock {
-	l := MySQCounterLock{}
+func NewCounterLockWithDSN(dsn string, debug bool) *MySQLCounterLock {
+	l := MySQLCounterLock{}
 	l.MySQLClient = InitMySQLWithDSN(dsn, debug)
 	l.ClientID = uuid.New().String()
 	l.MaxLockTime = time.Minute
@@ -35,8 +35,8 @@ func NewCounterLockWithDSN(dsn string, debug bool) *MySQCounterLock {
 	return &l
 }
 
-func NewCounterLockWithConn(db *sql.DB, debug bool) *MySQCounterLock {
-	l := MySQCounterLock{}
+func NewCounterLockWithConn(db *sql.DB, debug bool) *MySQLCounterLock {
+	l := MySQLCounterLock{}
 	l.MySQLClient = InitMySQLWithConn(db, debug)
 	l.ClientID = uuid.New().String()
 	l.MaxLockTime = time.Minute
@@ -46,7 +46,7 @@ func NewCounterLockWithConn(db *sql.DB, debug bool) *MySQCounterLock {
 }
 
 // Init :Create tables
-func (l *MySQCounterLock) Init(lockNameList []string) {
+func (l *MySQLCounterLock) Init(lockNameList []string) {
 	if !l.MySQLClient.Migrator().HasTable(&LockCounter{}) {
 		// Do not handle errors, because Init() can be executed multiple times
 		_ = l.MySQLClient.Migrator().CreateTable(&LockCounter{})
@@ -69,22 +69,22 @@ func (l *MySQCounterLock) Init(lockNameList []string) {
 	}
 }
 
-func (l *MySQCounterLock) SetClientID(clientID string) {
+func (l *MySQLCounterLock) SetClientID(clientID string) {
 	l.ClientID = clientID
 }
 
-func (l *MySQCounterLock) SetMaxLockTime(d time.Duration) {
+func (l *MySQLCounterLock) SetMaxLockTime(d time.Duration) {
 	l.MaxLockTime = d
 	if d < time.Minute {
 		l.MaxLockTime = time.Minute
 	}
 }
 
-func (l *MySQCounterLock) WithBackOff(b BackOff) {
+func (l *MySQLCounterLock) WithBackOff(b BackOff) {
 	l.backoff = b
 }
 
-func (l *MySQCounterLock) Refresh(lockName string) error {
+func (l *MySQLCounterLock) Refresh(lockName string) error {
 	ticker := time.NewTicker(l.MaxLockTime - time.Duration(10)*time.Second)
 	defer ticker.Stop()
 	var firstFlag bool = true
@@ -119,14 +119,14 @@ func (l *MySQCounterLock) Refresh(lockName string) error {
 	}
 }
 
-func (l *MySQCounterLock) StopRefresh(lockName string) {
+func (l *MySQLCounterLock) StopRefresh(lockName string) {
 	slog.Debug("StopRefresh")
 	l.store.CLoseDoneChan(lockName)
 }
 
 // Lock :If the lock cannot be obtained, it will keep blocking
 // wait: < 0 no wait
-func (l *MySQCounterLock) Acquire(lockName string, wait time.Duration) error {
+func (l *MySQLCounterLock) Acquire(lockName string, wait time.Duration) error {
 	mysqlClient := l.MySQLClient
 	var record LockCounter
 	var deadline time.Time
@@ -194,7 +194,7 @@ SUCESSGOT:
 	return nil
 }
 
-func (l *MySQCounterLock) Release(lockName string) error {
+func (l *MySQLCounterLock) Release(lockName string) error {
 	mysqlClient := l.MySQLClient
 	var record LockCounter
 

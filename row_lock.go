@@ -9,21 +9,21 @@ import (
 	"time"
 )
 
-type MySQRowLock struct {
+type MySQLRowLock struct {
 	sync.Mutex
 	MySQLClient *gorm.DB
 	TXMap       map[string]*gorm.DB
 }
 
-func NewRowLockWithDSN(dsn string, debug bool) *MySQRowLock {
-	l := MySQRowLock{}
+func NewRowLockWithDSN(dsn string, debug bool) *MySQLRowLock {
+	l := MySQLRowLock{}
 	l.MySQLClient = InitMySQLWithDSN(dsn, debug)
 	l.TXMap = make(map[string]*gorm.DB)
 	return &l
 }
 
-func NewRowLockWithConn(db *sql.DB, debug bool) *MySQRowLock {
-	l := MySQRowLock{}
+func NewRowLockWithConn(db *sql.DB, debug bool) *MySQLRowLock {
+	l := MySQLRowLock{}
 	l.MySQLClient = InitMySQLWithConn(db, debug)
 	l.TXMap = make(map[string]*gorm.DB)
 	return &l
@@ -31,7 +31,7 @@ func NewRowLockWithConn(db *sql.DB, debug bool) *MySQRowLock {
 
 // Init :Create tables
 // Create row record
-func (l *MySQRowLock) Init(lockNameList []string) {
+func (l *MySQLRowLock) Init(lockNameList []string) {
 	if !l.MySQLClient.Migrator().HasTable(&LockStore{}) {
 		// Do not handle errors, because Init() can be executed multiple times
 		_ = l.MySQLClient.Migrator().CreateTable(&LockStore{})
@@ -48,7 +48,7 @@ func (l *MySQRowLock) Init(lockNameList []string) {
 }
 
 // Lock :If the lock cannot be obtained, it will keep blocking
-func (l *MySQRowLock) Acquire(lockName string, wait time.Duration) error {
+func (l *MySQLRowLock) Acquire(lockName string, wait time.Duration) error {
 	l.Lock()
 
 	// start transaction
@@ -75,7 +75,7 @@ func (l *MySQRowLock) Acquire(lockName string, wait time.Duration) error {
 	return err
 }
 
-func (l *MySQRowLock) Release(lockName string) error {
+func (l *MySQLRowLock) Release(lockName string) error {
 	l.Lock()
 	tx, ok := l.TXMap[lockName]
 	l.Unlock()
