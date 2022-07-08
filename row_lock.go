@@ -52,11 +52,8 @@ func (l *MySQRowLock) Acquire(lockName string, wait time.Duration) error {
 	l.Lock()
 
 	// start transaction
-	tx, ok := l.TXMap[lockName]
-	if !ok {
-		l.TXMap[lockName] = l.MySQLClient.Begin()
-		tx = l.TXMap[lockName]
-	}
+	l.TXMap[lockName] = l.MySQLClient.Begin()
+	tx := l.TXMap[lockName]
 
 	l.Unlock()
 
