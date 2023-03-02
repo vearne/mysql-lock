@@ -40,6 +40,8 @@ So mysql-lock needs `CREATE` permission. Or you can use [doc/schema.sql](https:/
 
 # Example
 ```
+package main
+
 import (
 	mlock "github.com/vearne/mysql-lock"
 	"log"
@@ -47,11 +49,11 @@ import (
 )
 
 func main() {
-	//debug := false
-	debug := true
+	debug := false
+	//debug := true
 	dsn := "tc_user:20C462C9C614@tcp(127.0.0.1:3306)/xxx?charset=utf8&loc=Asia%2FShanghai&parseTime=true"
 
-	var locker *mlock.MySQCounterLock
+	var locker *mlock.MySQLCounterLock
 	locker = mlock.NewCounterLockWithDSN(dsn, debug)
 
 	// init() can be executed multiple times
