@@ -2,6 +2,7 @@ package lock
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -40,7 +41,7 @@ func (l *MySQLRowLock) Init(lockNameList []string) {
 	for _, lockName := range lockNameList {
 		var item LockStore
 		result := l.MySQLClient.Where("name = ?", lockName).Take(&item)
-		if result.Error == gorm.ErrRecordNotFound {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			l.MySQLClient.Clauses(clause.Insert{Modifier: "IGNORE"}).
 				Create(&LockStore{Name: lockName, CreatedAt: time.Now()})
 		}
