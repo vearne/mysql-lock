@@ -2,6 +2,7 @@ package lock
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	slog "github.com/vearne/simplelog"
@@ -55,16 +56,15 @@ func (l *MySQLCounterLock) Init(lockNameList []string) {
 	for _, lockName := range lockNameList {
 		var item LockCounter
 		result := l.MySQLClient.Where("name = ?", lockName).Take(&item)
-		if result.Error == gorm.ErrRecordNotFound {
-			l.MySQLClient.Clauses(clause.OnConflict{DoNothing: true}).
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			l.MySQLClient.Clauses(clause.Insert{Modifier: "IGNORE"}).
 				Create(&LockCounter{Name: lockName,
 					Counter:    LockStatusOpen,
 					Owner:      "",
 					CreatedAt:  time.Now(),
 					ModifiedAt: time.Now(),
 					ExpiredAt:  time.Now(),
-				},
-				)
+				})
 		}
 	}
 }
