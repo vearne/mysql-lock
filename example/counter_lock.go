@@ -11,7 +11,7 @@ func main() {
 	//debug := true
 	dsn := "tc_user:20C462C9C614@tcp(127.0.0.1:3306)/xxx?charset=utf8&loc=Asia%2FShanghai&parseTime=true"
 
-	var locker *mlock.MySQCounterLock
+	var locker *mlock.MySQLCounterLock
 	locker = mlock.NewCounterLockWithDSN(dsn, debug)
 
 	// init() can be executed multiple times
