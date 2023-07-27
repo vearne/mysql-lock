@@ -99,12 +99,10 @@ func (l *MySQLCounterLock) Refresh(lockName string) error {
 				lockName,
 				LockStatusClosed,
 				l.ClientID,
-			).
-				Updates(map[string]interface{}{
-					"owner":      l.ClientID,
-					"expired_at": time.Now().Add(l.MaxLockTime),
-				},
-				)
+			).Updates(map[string]interface{}{
+				"owner":      l.ClientID,
+				"expired_at": time.Now().Add(l.MaxLockTime),
+			})
 			if result.Error != nil {
 				return result.Error
 			}
