@@ -66,6 +66,7 @@ func (l *MySQLLock) Acquire(ctx context.Context) error {
 		timer := time.NewTimer(l.backoff.NextBackOff())
 		select {
 		case <-ctx.Done():
+			timer.Stop()
 			return AcquireTimeoutErr
 		case <-timer.C:
 			slog.Debug("Acquire retry lock[%v]", l.name)
