@@ -6,84 +6,82 @@
 
 * [English README](https://github.com/vearne/mysql-lock/blob/master/README.md)
 
-# 用法
+## 用法
 ```
 go get github.com/vearne/mysql-lock
 ```
 
-
-mysql-lock 使用2种方法创建MySQL分布式锁
-
-* 方法1：行锁
-
-初始化
-```
-mlock.NewRowLockWithDSN()
-mlock.NewRowLockWithConn()
-```
-* 方法2：设置标识
-
-初始化
+## 初始化
 ```
 mlock.NewCounterLockWithDSN()
 mlock.NewCounterLockWithConn()
 ```
 
-## 注意：对于方法1,基于mysql的分布式锁，是不严谨的:
+## 注意：基于mysql的分布式锁，是不严谨的:
 
 比如t1时刻，A持有锁，B等待加锁。t2时刻，A与MySQL之间的网络出现异常。
-MySQL自动释放了A所施加的锁(回滚了A没有提交的事务)，B加上了锁，
+MySQL自动释放了A所施加的锁，B加上了锁，
 这时候A会认为，它拥有锁；B也会认为自己持有锁。分布式锁其实失效了。
 
 
 ## 注意：mysql-lock会创建表
-* 方法1创建表`_lock_store`。
-* 方法2创建表`_lock_counter`。   
+* mysql-lock创建表`_lock_counter`。   
 
 所以mysql-lock需要`CREATE`权限。 或者你可以使用 [doc/schema.sql](https://github.com/vearne/mysql-lock/blob/main/doc/schema.sql) 来自己创建表。
 
-# 示例
+## 示例
 ```
 package main
 
 import (
+	"context"
 	mlock "github.com/vearne/mysql-lock"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
+)
+
+const (
+	DSN = "root:9E68-2607F7855D7D@tcp(127.0.0.1:23406)/testdb?charset=utf8&loc=Asia%2FShanghai&parseTime=true"
 )
 
 func main() {
 	debug := false
 	//debug := true
-	dsn := "tc_user:20C462C9C614@tcp(127.0.0.1:3306)/xxx?charset=utf8&loc=Asia%2FShanghai&parseTime=true"
 
-	var locker *mlock.MySQLCounterLock
-	locker = mlock.NewCounterLockWithDSN(dsn, debug)
+	locker := mlock.NewLockClientWithDSN(DSN, debug)
 
 	// init() can be executed multiple times
-	locker.Init([]string{"lock1", "lock2"})
-	// optional, only for CounterLock
-	//locker.SetClientID("client1")
-	// optional, only for CounterLock
-	// default 1 minutes
-	locker.SetMaxLockTime(1 * time.Minute)
-	// optional, only for CounterLock
-	// default NewLinearBackOff(1*time.Second)
-	locker.WithBackOff(mlock.NewLinearBackOff(2 * time.Second))
+	locker.Init()
+
+	clientID := "client2"
+	lockName := "lock1"
+	lock, err := locker.NewLock(lockName, mlock.WithClientID(clientID))
+	if err != nil {
+		log.Println("new lock", err)
+		return
+	}
 
 	beginTime := time.Now()
 	// max wait for 5 secs
-	err := locker.Acquire("lock1", 50*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancel()
+	err = lock.Acquire(ctx)
 	if err != nil {
 		log.Println("can't acquire lock", "error", err)
 		log.Println(time.Since(beginTime))
 		return
 	}
 
-	log.Println("got lock1")
-	log.Println(time.Since(beginTime))
-	time.Sleep(30 * time.Second)
-	locker.Release("lock1")
-	log.Println("release lock1")
+	log.Printf("%s got lock [%s]\n", clientID, lockName)
+	time.Sleep(10 * time.Second)
+	lock.Release(context.Background())
+	log.Printf("%s release lock [%s]\n", clientID, lockName)
+
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGINT)
+	<-ch
 }
 ```

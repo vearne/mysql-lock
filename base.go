@@ -1,6 +1,7 @@
 package lock
 
 import (
+	"context"
 	slog "github.com/vearne/simplelog"
 	"os"
 	"time"
@@ -10,6 +11,11 @@ type MySQLLockItf interface {
 	Init(lockNameList []string)
 	Acquire(lockName string, wait time.Duration) error
 	Release(lockName string) error
+}
+
+type LockItf interface {
+	Acquire(ctx context.Context) error
+	Release(ctx context.Context) error
 }
 
 func init() {
